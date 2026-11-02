@@ -1,0 +1,61 @@
+
+[
+  {
+    "id": "ICP-STUDENTS-01",
+    "title": "ICP - Outstanding Secondary School Students",
+    "source": "Federal Authority for Identity, Citizenship, Customs and Port Security",
+    "url": "https://icp.gov.ae/en/services/uae-golden-residency/",
+    "category": "secondary_students",
+    "authority_scope": "Federal UAE Golden Residency requirements",
+    "verification_status": "verified",
+    "last_verified": "2026-11-02",
+    "source_last_updated": "2026-10-29",
+    "content": "According to the ICP Golden Residency Guide, the applicant must have obtained a Grade 12 certificate from a government school or a private school licensed by the Ministry of Education or the relevant local education authority. The student must achieve a minimum grade of 95% in secondary school, or its equivalent, in accordance with the recommendations of the Ministry of Education and relevant local education authorities. The secondary school certificate must be attested by the Ministry of Education. These are the requirements displayed on the ICP page at the time of verification. Applicants should confirm the latest application procedure with ICP."
+  },
+  {
+    "id": "ICP-UAE-GRADUATES-01",
+    "title": "ICP - Graduates of UAE Universities",
+    "source": "Federal Authority for Identity, Citizenship, Customs and Port Security",
+    "url": "https://icp.gov.ae/en/services/uae-golden-residency/",
+    "category": "uae_university_graduates",
+    "authority_scope": "Federal UAE Golden Residency requirements",
+    "verification_status": "verified",
+    "last_verified": "2026-11-02",
+    "source_last_updated": "2026-10-29",
+    "content": "According to the ICP Golden Residency Guide, the applicant must hold a bachelor's, master's or doctoral degree from a university licensed by the Ministry of Education. The university must be classified in Category A or Category B according to the classification approved by the Ministry of Education. The academic qualification must be attested by the Ministry of Education. No more than two years must have elapsed since the applicant's graduation date at the time of application. The minimum cumulative GPA is 3.5 out of 4.0, or equivalent, for Category A graduates, and 3.8 out of 4.0, or equivalent, for Category B graduates. Applicants should confirm the latest application procedure with ICP."
+  },
+  {
+    "id": "ICP-INTERNATIONAL-GRADUATES-01",
+    "title": "ICP - Graduates of International Universities",
+    "source": "Federal Authority for Identity, Citizenship, Customs and Port Security",
+    "url": "https://icp.gov.ae/en/services/uae-golden-residency/",
+    "category": "international_graduates",
+    "authority_scope": "Federal UAE Golden Residency requirements",
+    "verification_status": "verified",
+    "last_verified": "2026-11-02",
+    "source_last_updated": "2026-10-29",
+    "content": "According to the ICP Golden Residency Guide, the university from which the applicant graduated must be ranked among the top 100 universities in the world according to the international ranking recognized by the Ministry of Education. The applicant must have achieved a minimum cumulative GPA of 3.5, or its equivalent, for a bachelor's degree. No more than two years must have elapsed since the applicant's graduation date at the time of application. The academic qualification must be attested by the Ministry of Education. Applicants should confirm the latest application procedure with ICP."
+  },
+  {
+    "id": "GDRFA-DUBAI-STUDENTS-01",
+    "title": "GDRFA Dubai - Golden Residence Permit for Top Students and Graduates",
+    "source": "General Directorate of Residency and Foreigners Affairs - Dubai",
+    "url": "https://www.gdrfad.gov.ae/en/services/8ea80dad-f43e-11eb-0320-0050569629e8",
+    "category": "dubai_application",
+    "authority_scope": "Dubai-specific service information and application procedures",
+    "verification_status": "needs_manual_verification",
+    "last_verified": "2026-11-02",
+    "content": "This is the official GDRFA Dubai service page concerning Golden Residence Permits for top students and graduates. It is included as a Dubai-specific reference for service procedures and application information. The detailed eligibility conditions, required documents, approval steps, fees and processing times have not yet been independently verified from the page content in this knowledge-base review. Do not infer or state these details unless they are confirmed from the live official service page. Applicants should consult GDRFA Dubai and ICP for current requirements."
+  },
+  {
+    "id": "UAE-STUDENT-RESIDENCE-01",
+    "title": "UAE Government - Residence Visa for Studying",
+    "source": "The Official Portal of the UAE Government",
+    "url": "https://u.ae/en/information-and-services/visa-and-emirates-id/residence-visas/residence-visa-for-studying-in-the-uae",
+    "category": "student_residence",
+    "authority_scope": "General student residence visa information, not Golden Residency eligibility",
+    "verification_status": "official_reference_scope_only",
+    "last_verified": "2026-11-02",
+    "content": "This official UAE Government reference concerns ordinary residence visas for studying in the UAE. It is included to help explain the distinction between an ordinary student residence visa and the Golden Residency category for outstanding students. Do not use this document to answer questions about Golden Residency GPA thresholds, academic rankings or eligibility conditions. For Golden Residency requirements, use the relevant ICP or GDRFA official reference."
+  }
+]

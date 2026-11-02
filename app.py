@@ -1,8 +1,10 @@
-
 import os
+import re
 import streamlit as st
 from google import genai
 from google.genai import types
+from rag import retrieve_context
+
 
 # ---------------- PAGE CONFIG ----------------
 st.set_page_config(
@@ -10,6 +12,7 @@ st.set_page_config(
     page_icon="🎓",
     layout="centered"
 )
+
 
 # ---------------- DESIGN ----------------
 st.markdown("""
@@ -43,13 +46,77 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# ---------------- API CONFIG ----------------
-api_key = None
 
+# ---------------- API CONFIG ----------------
 try:
     api_key = st.secrets.get("GEMINI_API_KEY")
 except Exception:
+    api_key = None
+
+if not api_key:
     api_key = os.getenv("GEMINI_API_KEY")
+
+
+# ---------------- LANGUAGE DETECTION ----------------
+def is_arabic(text):
+    return bool(re.search(r"[\u0600-\u06FF]", text))
+
+
+# ---------------- QUESTION CLASSIFICATION ----------------
+def is_fee_question(question):
+    q = question.lower()
+
+    # Match explicit fee/cost wording, not every use of "how much".
+    english_patterns = [
+        r"\bfees?\b",
+        r"\bcosts?\b",
+        r"\bprices?\b",
+        r"\bapplication charges?\b",
+        r"\bhow much\b.{0,60}\b(cost|fee|charge|price)\b",
+        r"\bwhat is the\b.{0,30}\b(fee|cost|price)\b"
+    ]
+
+    arabic_keywords = [
+        "رسوم",
+        "تكلفة",
+        "تكاليف",
+        "سعر",
+        "بكام",
+        "كم يكلف",
+        "كم تبلغ رسوم",
+        "كم رسوم"
+    ]
+
+    return (
+        any(re.search(pattern, q) for pattern in english_patterns)
+        or any(word in q for word in arabic_keywords)
+    )
+
+
+def is_guarantee_question(question):
+    q = question.lower()
+
+    english_patterns = [
+        r"\bguarantee\b",
+        r"\bguaranteed\b",
+        r"\bcan you assure\b",
+        r"\bconfirm that i am eligible\b",
+        r"\bconfirm my eligibility\b"
+    ]
+
+    arabic_keywords = [
+        "تضمن",
+        "ضامن",
+        "تضمنلي",
+        "تأكد أني مؤهل",
+        "تأكيد أهليتي"
+    ]
+
+    return (
+        any(re.search(pattern, q) for pattern in english_patterns)
+        or any(word in q for word in arabic_keywords)
+    )
+
 
 # ---------------- HEADER ----------------
 col1, col2, col3 = st.columns([1, 3, 1])
@@ -64,68 +131,76 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-# ---------------- KNOWLEDGE CONTEXT ----------------
-KNOWLEDGE = """
-Project: Salam AI – Smart Golden Visa Student Assistant.
 
-Purpose:
-Help university students understand information about the UAE Golden Visa,
-provide preliminary educational guidance, and direct students to relevant
-official authorities or university departments.
-
-The project proposal identifies the following official reference:
-GDRFA Dubai – Golden Residence:
-https://www.gdrfad.gov.ae/
-
-Important limitations:
-- Do not invent eligibility requirements, GPA thresholds, fees, or processing times.
-- Do not claim that a student is officially eligible.
-- Do not treat the project proposal as a complete legal requirements database.
-- If a specific legal condition is not included in the supplied context,
-  clearly say that it needs verification from the official UAE authority.
-- Distinguish general information from confirmed official requirements.
-- Encourage students to verify current rules with the relevant authority.
-"""
-
+# ---------------- SYSTEM INSTRUCTION ----------------
 SYSTEM_INSTRUCTION = """
 You are Salam AI, a professional and friendly student assistant
 specialized in explaining the UAE Golden Visa.
 
-Answer in the same language used by the student (Arabic or English).
+LANGUAGE:
+- Answer in the same language used by the student.
+- Support both Arabic and English.
 
-Use the supplied project context carefully.
-Never invent legal requirements, eligibility thresholds, fees, or timelines.
-If the context does not contain the answer, say so clearly and provide
-the official reference link when relevant.
+RELIABILITY:
+- Use retrieved official-source information as the primary basis
+  for specific Golden Visa requirements.
+- Do not invent eligibility requirements, GPA thresholds, fees,
+  processing times, or legal conditions.
+- Do not claim that a student is officially eligible.
+- Do not treat missing information as proof that a requirement
+  does not exist.
+- If the retrieved source does not answer the question, clearly say
+  that the current knowledge base does not contain enough information.
+- Direct the student to the relevant official authority when needed.
+- Distinguish official information from general explanations.
+- Do not combine requirements from different student categories.
+- Do not apply a requirement to a category unless the retrieved
+  source explicitly supports that category.
 
-You may explain general concepts and ask follow-up questions.
-You may provide preliminary guidance but never make official eligibility
-decisions.
+SOURCE ACCURACY:
+- A retrieved document is not automatically relevant to every question.
+- Use a source only if its actual content directly supports the answer.
+- Do not cite a source just because it was retrieved.
+- If no retrieved source supports the answer, do not use [1].
+- Never invent a source, citation, or URL.
 
-Keep answers clear, organized, and student-friendly.
+STYLE:
+- Keep answers clear, organized, and student-friendly.
+- Ask follow-up questions when necessary.
+- Provide preliminary educational guidance only.
+- Never make official eligibility decisions.
 """
+
 
 # ---------------- CHAT STATE ----------------
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
+
 # ---------------- SIDEBAR ----------------
 with st.sidebar:
     st.image("logo.png", width=180)
-    st.caption("Student Golden Visa Assistant")
+
     st.caption("Student Golden Visa Assistant")
     st.divider()
 
     st.markdown("### About")
+
     st.write(
         "An AI-powered assistant designed to help students "
         "understand UAE Golden Visa information."
     )
 
-    st.markdown("### Official reference")
+    st.markdown("### Official references")
+
     st.link_button(
         "GDRFA Dubai",
         "https://www.gdrfad.gov.ae/"
+    )
+
+    st.link_button(
+        "ICP UAE",
+        "https://icp.gov.ae/en/services/uae-golden-residency/"
     )
 
     if st.button("🗑️ Clear conversation"):
@@ -133,17 +208,51 @@ with st.sidebar:
         st.rerun()
 
     st.divider()
+
     st.caption("Salam AI MVP | Educational prototype")
+
+
+# ---------------- DISPLAY SOURCES ----------------
+def display_sources(sources):
+    if not sources:
+        return
+
+    with st.expander("📚 Sources / المصادر"):
+        for index, source in enumerate(sources, start=1):
+
+            title = source.get("title", "Official source")
+            url = source.get("url", "")
+            organization = source.get(
+                "source",
+                "Official authority"
+            )
+
+            if url:
+                st.markdown(
+                    f'**[{index}] [{title}]({url})**'
+                )
+            else:
+                st.markdown(f"**[{index}] {title}**")
+
+            st.caption(organization)
+
 
 # ---------------- CHAT DISPLAY ----------------
 for message in st.session_state.messages:
+
     with st.chat_message(message["role"]):
+
         st.markdown(message["content"])
+
+        if message["role"] == "assistant":
+            display_sources(message.get("sources", []))
+
 
 # ---------------- CHAT INPUT ----------------
 prompt = st.chat_input("Ask Salam AI about the Golden Visa...")
 
 if prompt:
+
     st.session_state.messages.append({
         "role": "user",
         "content": prompt
@@ -153,54 +262,169 @@ if prompt:
         st.markdown(prompt)
 
     with st.chat_message("assistant"):
+
+        sources = []
+
         if not api_key:
+
             answer = (
                 "The AI service is not configured yet. "
                 "Please add the Gemini API key in the application settings."
             )
+
             st.warning(answer)
 
         else:
+
             try:
-                client = genai.Client(api_key=api_key)
 
-                conversation = []
-                for item in st.session_state.messages[-10:]:
-                    conversation.append(
-                        f'{item["role"].upper()}: {item["content"]}'
-                    )
+                # 1. Handle questions that do not need RAG
+                if is_fee_question(prompt):
 
-                response = client.models.generate_content(
-                    model="gemini-3.5-flash-lite",
-                    contents=(
-                        SYSTEM_INSTRUCTION
-                        + "\n\nPROJECT KNOWLEDGE:\n"
-                        + KNOWLEDGE
-                        + "\n\nCONVERSATION:\n"
-                        + "\n".join(conversation)
-                        + "\n\nASSISTANT:"
-                    ),
-                    config=types.GenerateContentConfig(
-                        temperature=0.2,
-                        max_output_tokens=700
-                    )
-                )
+                    if is_arabic(prompt):
+                        answer = (
+                            "قاعدة المعرفة الحالية لا تحتوي على معلومات "
+                            "موثقة كافية عن رسوم التقديم على الإقامة الذهبية. "
+                            "يرجى مراجعة الهيئة الاتحادية للهوية والجنسية "
+                            "والجمارك وأمن المنافذ (ICP)، أو الجهة المختصة "
+                            "في الإمارة، لمعرفة الرسوم الرسمية المحدثة."
+                        )
+                    else:
+                        answer = (
+                            "The current knowledge base does not contain "
+                            "verified information about Golden Visa application "
+                            "fees. Please check directly with the Federal "
+                            "Authority for Identity, Citizenship, Customs "
+                            "and Port Security (ICP), or the relevant "
+                            "emirate authority, for the latest official fees."
+                        )
 
-                answer = response.text or (
-                    "I could not generate an answer. Please try again."
-                )
-                st.markdown(answer)
+                    sources = []
+                    st.markdown(answer)
+
+                elif is_guarantee_question(prompt):
+
+                    if is_arabic(prompt):
+                        answer = (
+                            "لا، لا يمكنني ضمان أهليتك الرسمية للحصول على "
+                            "الإقامة الذهبية في الإمارات. أنا أقدم إرشادات "
+                            "تعليمية أولية فقط، والقرار النهائي بشأن الأهلية "
+                            "يعود إلى الجهات الإماراتية المختصة. "
+                            "يمكنني مساعدتك في مراجعة الشروط المنشورة "
+                            "ومقارنتها بمعلوماتك."
+                        )
+                    else:
+                        answer = (
+                            "No, I cannot guarantee that you are officially "
+                            "eligible for the UAE Golden Visa. I provide "
+                            "preliminary educational guidance only. The final "
+                            "eligibility decision is made by the relevant "
+                            "UAE authorities. I can help you review the "
+                            "published requirements against your information."
+                        )
+
+                    sources = []
+                    st.markdown(answer)
+
+                else:
+
+                    # 2. Retrieve relevant verified knowledge
+                    with st.spinner(
+                        "Searching official knowledge sources..."
+                    ):
+
+                        retrieved_context, sources = retrieve_context(
+                            question=prompt,
+                            api_key=api_key,
+                            top_k=1
+                        )
+
+                    # 3. Check retrieval results
+                    if not sources or not retrieved_context.strip():
+
+                        if is_arabic(prompt):
+                            answer = (
+                                "لم أجد معلومات موثقة ومرتبطة بسؤالك "
+                                "بدرجة كافية في قاعدة المعرفة الحالية. "
+                                "يرجى مراجعة موقع ICP أو GDRFA الرسمي "
+                                "للحصول على أحدث المعلومات."
+                            )
+                        else:
+                            answer = (
+                                "I couldn't find sufficiently relevant "
+                                "information in my current knowledge base "
+                                "to answer this question reliably. "
+                                "Please check the official ICP or GDRFA "
+                                "website for the latest information."
+                            )
+
+                        sources = []
+                        st.markdown(answer)
+
+                    else:
+
+                        # 4. Prepare recent conversation
+                        conversation = []
+
+                        for item in st.session_state.messages[-10:]:
+
+                            conversation.append(
+                                f'{item["role"].upper()}: '
+                                f'{item["content"]}'
+                            )
+
+                        # 5. Generate answer using Gemini
+                        client = genai.Client(api_key=api_key)
+
+                        response = client.models.generate_content(
+                            model="gemini-3.5-flash-lite",
+
+                            contents=(
+                                SYSTEM_INSTRUCTION
+                                + "\n\nRETRIEVED OFFICIAL KNOWLEDGE:\n"
+                                + retrieved_context
+                                + "\n\nCONVERSATION:\n"
+                                + "\n".join(conversation)
+                                + "\n\nASSISTANT:"
+                            ),
+
+                            config=types.GenerateContentConfig(
+                                temperature=0.2,
+                                max_output_tokens=700
+                            )
+                        )
+
+                        answer = response.text or (
+                            "I could not generate an answer. "
+                            "Please try again."
+                        )
+
+                        st.markdown(answer)
+
+                        display_sources(sources)
 
             except Exception as error:
-                answer = (
-                    "Sorry, the AI service encountered an error. "
-                    "Please try again. If the problem continues, "
-                    "check the API configuration."
-                )
+
+                if is_arabic(prompt):
+                    answer = (
+                        "عذرًا، حدث خطأ أثناء معالجة سؤالك. "
+                        "يرجى المحاولة مرة أخرى."
+                    )
+                else:
+                    answer = (
+                        "Sorry, the AI service encountered an error. "
+                        "Please try again. If the problem continues, "
+                        "check the API configuration."
+                    )
+
+                sources = []
+
                 st.error(answer)
                 st.caption(f"Technical details: {error}")
 
+    # 6. Save answer and its sources
     st.session_state.messages.append({
         "role": "assistant",
-        "content": answer
+        "content": answer,
+        "sources": sources
     })
