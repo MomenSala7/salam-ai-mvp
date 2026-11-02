@@ -52,23 +52,17 @@ except Exception:
     api_key = os.getenv("GEMINI_API_KEY")
 
 # ---------------- HEADER ----------------
+col1, col2, col3 = st.columns([1, 3, 1])
+
+with col2:
+    st.image("logo.png", use_container_width=True)
+
 st.markdown("""
 <div class="hero">
-    <h1>🎓 Salam AI</h1>
     <h3>Smart Golden Visa Student Assistant</h3>
     <p>Your intelligent guide to understanding the UAE Golden Visa.</p>
 </div>
 """, unsafe_allow_html=True)
-
-st.markdown("""
-<div class="disclaimer">
-<strong>Important:</strong> Salam AI provides educational information
-and preliminary guidance only. It does not issue official eligibility
-decisions or replace UAE government authorities.
-</div>
-""", unsafe_allow_html=True)
-
-st.write("")
 
 # ---------------- KNOWLEDGE CONTEXT ----------------
 KNOWLEDGE = """
@@ -117,7 +111,8 @@ if "messages" not in st.session_state:
 
 # ---------------- SIDEBAR ----------------
 with st.sidebar:
-    st.title("🎓 Salam AI")
+    st.image("logo.png", width=180)
+    st.caption("Student Golden Visa Assistant")
     st.caption("Student Golden Visa Assistant")
     st.divider()
 
