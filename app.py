@@ -43,6 +43,43 @@ st.markdown("""
     border-radius: 10px;
     font-size: 13px;
 }
+
+/* Chat typography and direction: Arabic RTL, English LTR */
+div[data-testid="stChatMessage"]:has(.salam-rtl-marker) [data-testid="stMarkdownContainer"] {
+    direction: rtl !important;
+    text-align: right !important;
+    unicode-bidi: plaintext;
+    font-size: 18px !important;
+    line-height: 1.9 !important;
+}
+
+div[data-testid="stChatMessage"]:has(.salam-rtl-marker) [data-testid="stMarkdownContainer"] p {
+    direction: rtl !important;
+    text-align: right !important;
+    margin-bottom: 0.9rem !important;
+    line-height: 1.9 !important;
+}
+
+div[data-testid="stChatMessage"]:has(.salam-rtl-marker) [data-testid="stMarkdownContainer"] ul,
+div[data-testid="stChatMessage"]:has(.salam-rtl-marker) [data-testid="stMarkdownContainer"] ol {
+    direction: rtl !important;
+    text-align: right !important;
+    padding-right: 1.5rem !important;
+    padding-left: 0 !important;
+}
+
+div[data-testid="stChatMessage"]:has(.salam-ltr-marker) [data-testid="stMarkdownContainer"] {
+    direction: ltr !important;
+    text-align: left !important;
+    font-size: 16px !important;
+    line-height: 1.7 !important;
+}
+
+div[data-testid="stChatMessage"]:has(.salam-ltr-marker) [data-testid="stMarkdownContainer"] p {
+    direction: ltr !important;
+    text-align: left !important;
+    margin-bottom: 0.75rem !important;
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -62,37 +99,17 @@ def is_arabic(text):
     return bool(re.search(r"[\u0600-\u06FF]", text))
 
 
-# ---------------- QUESTION CLASSIFICATION ----------------
-def is_fee_question(question):
-    q = question.lower()
-
-    # Match explicit fee/cost wording, not every use of "how much".
-    english_patterns = [
-        r"\bfees?\b",
-        r"\bcosts?\b",
-        r"\bprices?\b",
-        r"\bapplication charges?\b",
-        r"\bhow much\b.{0,60}\b(cost|fee|charge|price)\b",
-        r"\bwhat is the\b.{0,30}\b(fee|cost|price)\b"
-    ]
-
-    arabic_keywords = [
-        "رسوم",
-        "تكلفة",
-        "تكاليف",
-        "سعر",
-        "بكام",
-        "كم يكلف",
-        "كم تبلغ رسوم",
-        "كم رسوم"
-    ]
-
-    return (
-        any(re.search(pattern, q) for pattern in english_patterns)
-        or any(word in q for word in arabic_keywords)
+def render_chat_text(text):
+    """Render chat text with direction and typography based on its language."""
+    direction_class = "salam-rtl-marker" if is_arabic(text) else "salam-ltr-marker"
+    st.markdown(
+        f'<span class="{direction_class}" aria-hidden="true"></span>',
+        unsafe_allow_html=True
     )
+    st.markdown(text)
 
 
+# ---------------- QUESTION CLASSIFICATION ----------------
 def is_guarantee_question(question):
     q = question.lower()
 
@@ -132,45 +149,59 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 
+
 # ---------------- SYSTEM INSTRUCTION ----------------
 SYSTEM_INSTRUCTION = """
-You are Salam AI, a professional and friendly student assistant
-specialized in explaining the UAE Golden Visa.
+You are Salam AI, a professional student assistant specialized in the UAE Golden Residency for outstanding students and graduates.
 
 LANGUAGE:
 - Answer in the same language used by the student.
-- Support both Arabic and English.
+- Support Arabic and English.
+- For Arabic, use clear Modern Standard Arabic and natural sentence structure.
 
-RELIABILITY:
-- Use retrieved official-source information as the primary basis
-  for specific Golden Visa requirements.
-- Do not invent eligibility requirements, GPA thresholds, fees,
-  processing times, or legal conditions.
-- Do not claim that a student is officially eligible.
-- Do not treat missing information as proof that a requirement
-  does not exist.
-- If the retrieved source does not answer the question, clearly say
-  that the current knowledge base does not contain enough information.
-- Direct the student to the relevant official authority when needed.
-- Distinguish official information from general explanations.
-- Do not combine requirements from different student categories.
-- Do not apply a requirement to a category unless the retrieved
-  source explicitly supports that category.
+ROLE AND ANSWER QUALITY:
+- Give a useful, direct, sufficiently detailed answer whenever the retrieved official sources support it.
+- Do not answer with a generic referral to an official website when the retrieved sources already contain the requested facts.
+- Explain the relevant requirements, academic thresholds, documents, application steps, fees, and service timing when those details are present in the retrieved sources and relevant to the question.
+- Do not dump every detail into every answer. Select only the details needed to answer the student's actual question.
+- If the question is broad (for example, "What are the requirements for students?"), explain that there are separate categories and summarize the distinctions between secondary-school students, graduates of UAE universities, and graduates of international universities. Do not mix their requirements. Ask which category applies only after giving this useful overview.
+- If the student's category is clear, answer for that category only.
+- If an essential detail is missing and the answer depends on it, state the relevant distinction and ask one concise follow-up question.
+
+OFFICIAL ACCURACY:
+- Treat the retrieved official-source content as the primary and controlling basis for specific requirements.
+- Never invent or estimate GPA thresholds, percentages, fees, processing times, required documents, or legal conditions.
+- Preserve all numbers, units, conditions, and category distinctions exactly as stated in the sources.
+- Do not claim that a student is officially eligible or guarantee approval.
+- Do not treat missing information as proof that a requirement does not exist.
+- Distinguish verified official facts from general guidance.
+- If the retrieved sources do not answer the question, say clearly what specific information is unavailable and direct the student to the relevant authority.
+
+JURISDICTION AND SERVICE SCOPE:
+- GDRFA Dubai service details, document checklists, fees, processing time, and renewal statements apply specifically to the Dubai service. Explicitly say "وفق خدمة GDRFA دبي" / "For the GDRFA Dubai service" when using them.
+- Never present the Dubai fee schedule as a UAE-wide fee schedule.
+- The AED 500 item is labelled by GDRFA Dubai as a fee inside the country. Do not imply that it applies to every applicant.
+- Do not calculate or promise a final total payment. Tell the user to confirm the exact amount in the official payment screen because it may depend on the application circumstances.
+- If a student asks about another emirate, do not use Dubai-only fees or application rules as if they apply there.
+- Keep ordinary student residence visas separate from the Golden Residency for outstanding students.
+- For renewal questions, distinguish ICP's general programme description (automatic renewal) from GDRFA Dubai's student-service-specific statement (student permits are not renewed after expiry / are non-extendable under the stated service details). Explain that the published pages do not reconcile this scope difference. Do not promise renewal; advise the student to confirm the procedure for their specific file with the competent authority. Do not generalize the GDRFA Dubai statement to other emirates or all Golden Residency categories.
 
 SOURCE ACCURACY:
 - A retrieved document is not automatically relevant to every question.
-- Use a source only if its actual content directly supports the answer.
-- Do not cite a source just because it was retrieved.
-- If no retrieved source supports the answer, do not use [1].
-- Never invent a source, citation, or URL.
+- Use a source only when its actual content supports the answer.
+- Cite only the supplied source labels such as [1] or [2]. Never invent a citation, source, or URL.
+- If no retrieved source supports a claim, do not cite it.
+- When sources have a limited jurisdiction, explain that limitation in the answer.
 
-STYLE:
-- Keep answers clear, organized, and student-friendly.
-- Ask follow-up questions when necessary.
-- Provide preliminary educational guidance only.
-- Never make official eligibility decisions.
+RESPONSE STYLE:
+- Write natural, connected paragraphs in a professional, helpful tone.
+- Do not use numbered lists (1, 2, 3).
+- Prefer short paragraphs and descriptive wording. Avoid excessive headings and avoid unnecessary bullet lists.
+- Do not place numbers beside each requirement as a numbered list. Keep official numbers such as 95%, 3.5, 3.8, AED 1,100 and 10 years when they are source-supported.
+- Keep the answer easy for a student to understand without changing the official meaning.
+- Ask follow-up questions only when genuinely necessary.
+- Provide preliminary educational guidance only; final eligibility and approval are determined by the competent authorities.
 """
-
 
 # ---------------- CHAT STATE ----------------
 if "messages" not in st.session_state:
@@ -234,7 +265,14 @@ def display_sources(sources):
             else:
                 st.markdown(f"**[{index}] {title}**")
 
-            st.caption(organization)
+            jurisdiction = source.get("jurisdiction", "")
+            scope = source.get("authority_scope", "")
+            caption_parts = [organization]
+            if jurisdiction:
+                caption_parts.append(jurisdiction)
+            if scope:
+                caption_parts.append(scope)
+            st.caption(" • ".join(caption_parts))
 
 
 # ---------------- CHAT DISPLAY ----------------
@@ -242,7 +280,7 @@ for message in st.session_state.messages:
 
     with st.chat_message(message["role"]):
 
-        st.markdown(message["content"])
+        render_chat_text(message["content"])
 
         if message["role"] == "assistant":
             display_sources(message.get("sources", []))
@@ -259,7 +297,7 @@ if prompt:
     })
 
     with st.chat_message("user"):
-        st.markdown(prompt)
+        render_chat_text(prompt)
 
     with st.chat_message("assistant"):
 
@@ -272,37 +310,15 @@ if prompt:
                 "Please add the Gemini API key in the application settings."
             )
 
-            st.warning(answer)
+            render_chat_text(answer)
 
         else:
 
             try:
 
-                # 1. Handle questions that do not need RAG
-                if is_fee_question(prompt):
-
-                    if is_arabic(prompt):
-                        answer = (
-                            "قاعدة المعرفة الحالية لا تحتوي على معلومات "
-                            "موثقة كافية عن رسوم التقديم على الإقامة الذهبية. "
-                            "يرجى مراجعة الهيئة الاتحادية للهوية والجنسية "
-                            "والجمارك وأمن المنافذ (ICP)، أو الجهة المختصة "
-                            "في الإمارة، لمعرفة الرسوم الرسمية المحدثة."
-                        )
-                    else:
-                        answer = (
-                            "The current knowledge base does not contain "
-                            "verified information about Golden Visa application "
-                            "fees. Please check directly with the Federal "
-                            "Authority for Identity, Citizenship, Customs "
-                            "and Port Security (ICP), or the relevant "
-                            "emirate authority, for the latest official fees."
-                        )
-
-                    sources = []
-                    st.markdown(answer)
-
-                elif is_guarantee_question(prompt):
+                # Handle guarantee questions directly; all factual questions,
+                # including fees and application steps, go through official-source RAG.
+                if is_guarantee_question(prompt):
 
                     if is_arabic(prompt):
                         answer = (
@@ -324,19 +340,20 @@ if prompt:
                         )
 
                     sources = []
-                    st.markdown(answer)
+                    render_chat_text(answer)
 
                 else:
 
                     # 2. Retrieve relevant verified knowledge
                     with st.spinner(
-                        "Searching official knowledge sources..."
+                        "جارٍ البحث في المصادر الرسمية..." if is_arabic(prompt)
+                        else "Searching official knowledge sources..."
                     ):
 
                         retrieved_context, sources = retrieve_context(
                             question=prompt,
                             api_key=api_key,
-                            top_k=1
+                            top_k=4
                         )
 
                     # 3. Check retrieval results
@@ -344,22 +361,22 @@ if prompt:
 
                         if is_arabic(prompt):
                             answer = (
-                                "لم أجد معلومات موثقة ومرتبطة بسؤالك "
-                                "بدرجة كافية في قاعدة المعرفة الحالية. "
-                                "يرجى مراجعة موقع ICP أو GDRFA الرسمي "
-                                "للحصول على أحدث المعلومات."
+                                "لم أعثر في المصادر الرسمية المتاحة لدي على "
+                                "معلومات كافية للإجابة عن هذا الجزء من سؤالك بدقة. "
+                                "يمكنك تحديد الإمارة أو فئة الطالب، أو مراجعة "
+                                "الجهة المختصة للحصول على تفاصيل الطلب المحدثة."
                             )
                         else:
                             answer = (
-                                "I couldn't find sufficiently relevant "
-                                "information in my current knowledge base "
-                                "to answer this question reliably. "
-                                "Please check the official ICP or GDRFA "
-                                "website for the latest information."
+                                "I could not find enough verified official "
+                                "information to answer this part reliably. "
+                                "You can specify the emirate or student category, "
+                                "or confirm the application details with the "
+                                "relevant authority."
                             )
 
                         sources = []
-                        st.markdown(answer)
+                        render_chat_text(answer)
 
                     else:
 
@@ -385,6 +402,9 @@ if prompt:
                                 + retrieved_context
                                 + "\n\nCONVERSATION:\n"
                                 + "\n".join(conversation)
+                                + "\n\nWrite a direct, complete answer using only the relevant retrieved facts. "
+                                + "Explain any Dubai-only scope. Do not use numbered lists. "
+                                + "Keep official numerical requirements unchanged. "
                                 + "\n\nASSISTANT:"
                             ),
 
@@ -399,7 +419,7 @@ if prompt:
                             "Please try again."
                         )
 
-                        st.markdown(answer)
+                        render_chat_text(answer)
 
                         display_sources(sources)
 
@@ -419,7 +439,7 @@ if prompt:
 
                 sources = []
 
-                st.error(answer)
+                render_chat_text(answer)
                 st.caption(f"Technical details: {error}")
 
     # 6. Save answer and its sources
